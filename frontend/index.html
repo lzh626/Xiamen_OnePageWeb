@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>厦门旅游 - 发现最美鹭岛</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <h1>探索厦门</h1>
+        <p>海上花园，文艺鹭岛</p>
+    </header>
+    <main class="container">
+        <section class="weather-section">
+            <h2 class="section-title">厦门实时天气</h2>
+            <div id="weather-loading" class="state-msg">天气加载中...</div>
+            <div id="weather-error" class="state-msg error hidden"></div>
+            <div id="weather-card" class="weather-card hidden"></div>
+        </section>
+        <section id="attractions-section">
+            <h2 class="section-title">热门景点</h2>
+            <div id="loading" class="state-msg">数据加载中...</div>
+            <div id="error-msg" class="state-msg error hidden"></div>
+            <div id="attractions-grid" class="grid hidden"></div>
+        </section>
+    </main>
+    <script src="/js/api.js"></script>
+    <script src="/js/main.js"></script>
+</body>
+</html>
