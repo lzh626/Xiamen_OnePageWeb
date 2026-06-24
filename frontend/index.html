@@ -11,20 +11,93 @@
         <h1>探索厦门</h1>
         <p>海上花园，文艺鹭岛</p>
     </header>
+
     <main class="container">
-        <section class="weather-section">
-            <h2 class="section-title">厦门实时天气</h2>
+        <section id="weather-section">
             <div id="weather-loading" class="state-msg">天气加载中...</div>
             <div id="weather-error" class="state-msg error hidden"></div>
             <div id="weather-card" class="weather-card hidden"></div>
         </section>
+
+        <section id="route-section">
+            <h2 class="section-title">智能路线推荐</h2>
+            <div class="route-panel">
+                <div class="route-controls">
+                    <div class="pref-tags" id="pref-tags">
+                        <span class="pref-label">偏好：</span>
+                        <button class="pref-chip" data-pref="亲子">亲子</button>
+                        <button class="pref-chip" data-pref="摄影">摄影</button>
+                        <button class="pref-chip" data-pref="人文">人文</button>
+                        <button class="pref-chip" data-pref="海边">海边</button>
+                        <button class="pref-chip" data-pref="美食">美食</button>
+                        <button class="pref-chip" data-pref="低强度">低强度</button>
+                    </div>
+                    <div class="route-actions">
+                        <select id="route-duration">
+                            <option value="half_day">半日游</option>
+                            <option value="one_day">一日游</option>
+                        </select>
+                        <button id="recommend-btn" class="action-btn">生成推荐路线</button>
+                        <button id="reset-recommend-btn" class="action-btn secondary">重置偏好</button>
+                    </div>
+                </div>
+                <div id="route-loading" class="state-msg hidden">路线生成中...</div>
+                <div id="route-error" class="state-msg error hidden"></div>
+                <div id="route-result" class="route-result hidden"></div>
+            </div>
+        </section>
+
         <section id="attractions-section">
             <h2 class="section-title">热门景点</h2>
-            <div id="loading" class="state-msg">数据加载中...</div>
-            <div id="error-msg" class="state-msg error hidden"></div>
+
+            <div class="filter-bar">
+                <input type="text" id="filter-keyword" placeholder="搜索景点名称或描述..." maxlength="50">
+                <select id="filter-region">
+                    <option value="">全部区域</option>
+                    <option value="思明区">思明区</option>
+                    <option value="湖里区">湖里区</option>
+                    <option value="集美区">集美区</option>
+                    <option value="同安区">同安区</option>
+                    <option value="翔安区">翔安区</option>
+                    <option value="海沧区">海沧区</option>
+                </select>
+                <select id="filter-tag">
+                    <option value="">全部标签</option>
+                    <option value="亲子">亲子</option>
+                    <option value="摄影">摄影</option>
+                    <option value="人文">人文</option>
+                    <option value="海边">海边</option>
+                    <option value="美食">美食</option>
+                    <option value="低强度">低强度</option>
+                </select>
+                <select id="filter-sort">
+                    <option value="recommend_score">按推荐指数</option>
+                    <option value="popularity_score">按热度</option>
+                    <option value="favorite_count">按收藏数</option>
+                    <option value="comment_count">按评论数</option>
+                    <option value="name">按名称</option>
+                    <option value="created_at">按创建时间</option>
+                </select>
+                <select id="filter-order">
+                    <option value="desc">降序</option>
+                    <option value="asc">升序</option>
+                </select>
+                <button id="apply-filter-btn" class="action-btn">筛选</button>
+                <button id="reset-filter-btn" class="action-btn secondary">重置</button>
+            </div>
+
+            <div id="attractions-loading" class="state-msg">数据加载中...</div>
+            <div id="attractions-error" class="state-msg error hidden"></div>
             <div id="attractions-grid" class="grid hidden"></div>
+
+            <div id="pagination-bar" class="pagination-bar hidden">
+                <button id="prev-page" class="action-btn secondary" disabled>上一页</button>
+                <span id="page-info" class="page-info">第 1 页</span>
+                <button id="next-page" class="action-btn secondary" disabled>下一页</button>
+            </div>
         </section>
     </main>
+
     <script src="/js/api.js"></script>
     <script src="/js/main.js"></script>
 </body>

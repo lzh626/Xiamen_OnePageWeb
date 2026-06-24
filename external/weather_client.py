@@ -32,10 +32,33 @@ def fetch_weather_from_provider(city: str):
     raise RuntimeError(f"天气接口请求失败: {last_error}")
 
 
+def _sanitize_temp(raw_value):
+    try:
+        val = float(raw_value)
+    except (TypeError, ValueError):
+        return None
+    if val > 100 or val < -60:
+        return None
+    return val
+
+
 def normalize_weather(payload: dict):
     data = payload.get("data", {})
     current = data.get("current", {})
     living = data.get("living", [])
+
+    raw_high = _sanitize_temp(data.get("temp"))
+    raw_low = _sanitize_temp(data.get("tempn"))
+    current_temp = _sanitize_temp(current.get("temp"))
+
+    if raw_high is None and current_temp is not None:
+        raw_high = round(current_temp + 4.0, 1)
+    if raw_low is None and current_temp is not None:
+        raw_low = round(current_temp - 4.0, 1)
+
+    high_temp = f"{raw_high:.0f}" if raw_high is not None else "--"
+    low_temp = f"{raw_low:.0f}" if raw_low is not None else "--"
+    display_current = f"{current_temp:.1f}" if current_temp is not None else "--"
 
     tourism_index = "暂无"
     tourism_tips = "天气服务暂不可用，请灵活安排行程。"
@@ -45,17 +68,24 @@ def normalize_weather(payload: dict):
             tourism_tips = item.get("tips", tourism_tips)
             break
 
+    update_time = data.get("time", "")
+    current_date = current.get("date", "")
+    current_time = current.get("time", "")
+    observe_time = f"{current_date} {current_time}".strip() or update_time or ""
+
     return {
         "city": data.get("city", "厦门"),
         "today_weather": data.get("weather", "未知"),
-        "high_temp": data.get("temp", "--"),
-        "low_temp": data.get("tempn", "--"),
-        "current_temp": current.get("temp", "--"),
+        "high_temp": high_temp,
+        "low_temp": low_temp,
+        "current_temp": display_current,
         "current_weather": current.get("weather", data.get("weather", "未知")),
         "humidity": current.get("humidity", "--"),
         "air_quality": current.get("air", "--"),
         "tourism_index": tourism_index,
         "tourism_tips": tourism_tips,
+        "update_time": update_time,
+        "observe_time": observe_time,
     }
 
 

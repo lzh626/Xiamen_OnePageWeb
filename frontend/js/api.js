@@ -23,12 +23,45 @@ const API = {
         }
     },
 
-    async getAttractions() {
-        return this.request('/api/attractions');
+    async getAttractions(params = {}) {
+        const query = new URLSearchParams();
+        Object.entries(params).forEach(([k, v]) => {
+            if (v !== null && v !== undefined && v !== '') {
+                if (Array.isArray(v)) {
+                    v.forEach((val) => query.append(k, val));
+                } else {
+                    query.append(k, v);
+                }
+            }
+        });
+        const qs = query.toString();
+        return this.request('/api/attractions' + (qs ? '?' + qs : ''));
+    },
+
+    async getAttractionDetail(id) {
+        return this.request('/api/attractions/' + id);
     },
 
     async getWeather() {
         return this.request('/api/weather/xiamen');
+    },
+
+    async recommendRoute(preferences, duration) {
+        const query = new URLSearchParams();
+        (preferences || []).forEach((p) => query.append('preferences', p));
+        query.append('duration', duration || 'half_day');
+        return this.request('/api/routes/recommend?' + query.toString());
+    },
+
+    async saveCustomRoute(payload) {
+        return this.request('/api/routes/custom', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    },
+
+    async getSavedRoutes(page, pageSize) {
+        return this.request('/api/routes?page=' + (page || 1) + '&page_size=' + (pageSize || 10));
     },
 
     async submitFavorite(payload) {

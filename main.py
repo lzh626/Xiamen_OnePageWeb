@@ -10,6 +10,7 @@ from api.interactions import router as interactions_router
 from db.database import init_db
 from api.attractions import router as attractions_router
 from api.weather import router as weather_router
+from api.recommend import router as recommend_router
 
 # 启动时初始化数据库
 init_db()
@@ -20,6 +21,7 @@ app = FastAPI(title="厦门旅游 Web API")
 app.include_router(attractions_router)
 app.include_router(interactions_router)
 app.include_router(weather_router)
+app.include_router(recommend_router)
 
 
 @app.exception_handler(StarletteHTTPException)
