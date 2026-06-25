@@ -56,6 +56,9 @@ def normalize_weather(payload: dict):
     if raw_low is None and current_temp is not None:
         raw_low = round(current_temp - 4.0, 1)
 
+    if raw_high is not None and raw_low is not None and raw_low > raw_high:
+        raw_high, raw_low = raw_low, raw_high
+
     high_temp = f"{raw_high:.0f}" if raw_high is not None else "--"
     low_temp = f"{raw_low:.0f}" if raw_low is not None else "--"
     display_current = f"{current_temp:.1f}" if current_temp is not None else "--"
@@ -101,4 +104,6 @@ def build_fallback_weather(city: str, reason: str):
         "air_quality": "--",
         "tourism_index": "谨慎安排",
         "tourism_tips": f"天气接口暂不可用，建议以现场天气为准。原因: {reason}",
+        "update_time": "",
+        "observe_time": "",
     }
