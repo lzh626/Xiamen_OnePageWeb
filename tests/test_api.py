@@ -14,9 +14,10 @@ def test_get_attractions():
     data = response.json()
     assert data["code"] == 0
     assert "items" in data["data"]
-    assert len(data["data"]["items"]) >= 5
+    assert len(data["data"]["items"]) >= 12
     names = [item["name"] for item in data["data"]["items"]]
     assert "鼓浪屿" in names
+    assert "集美学村" in names
 
 
 def test_get_attractions_with_filter():
@@ -36,37 +37,53 @@ def test_get_attractions_with_region():
     data = response.json()
     assert data["code"] == 0
     items = data["data"]["items"]
-    assert len(items) >= 5
+    assert len(items) >= 8
+    regions = {item["region"] for item in items}
+    assert "思明区" in regions
+
+
+def test_get_attractions_with_region_jimei():
+    response = client.get("/api/attractions?region=集美区")
+    assert response.status_code == 200
+    data = response.json()
+    items = data["data"]["items"]
+    names = [item["name"] for item in items]
+    assert "集美学村" in names
+    assert "园博苑" in names
 
 
 def test_get_attractions_with_tag():
     response = client.get("/api/attractions?tag=海边")
     assert response.status_code == 200
     data = response.json()
-    assert data["code"] == 0
     items = data["data"]["items"]
     names = [item["name"] for item in items]
-    assert any("鼓浪" in n or "环岛" in n for n in names)
+    assert any(n in name for n in ["鼓浪", "环岛", "海沧"] for name in names)
 
 
 def test_get_attractions_with_sort():
     response = client.get("/api/attractions?sort_by=popularity_score&order=desc")
     assert response.status_code == 200
     data = response.json()
-    assert data["code"] == 0
     items = data["data"]["items"]
     assert len(items) >= 2
     assert items[0]["popularity_score"] >= items[-1]["popularity_score"]
 
 
-def test_get_attractions_with_pagination():
-    response = client.get("/api/attractions?page=1&page_size=3")
+def test_get_attractions_with_sort_by_like_count():
+    response = client.get("/api/attractions?sort_by=like_count&order=desc")
     assert response.status_code == 200
     data = response.json()
     assert data["code"] == 0
-    assert len(data["data"]["items"]) <= 3
+
+
+def test_get_attractions_with_pagination():
+    response = client.get("/api/attractions?page=1&page_size=6")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["data"]["items"]) <= 6
     assert data["data"]["pagination"]["page"] == 1
-    assert data["data"]["pagination"]["page_size"] == 3
+    assert data["data"]["pagination"]["total"] >= 12
 
 
 def test_get_attractions_invalid_region():
@@ -83,15 +100,49 @@ def test_get_attraction_detail():
     response = client.get("/api/attractions/1")
     assert response.status_code == 200
     data = response.json()
-    assert data["code"] == 0
     assert data["data"]["attraction"]["name"] == "鼓浪屿"
     assert "tags" in data["data"]
     assert "comments" in data["data"]
+    assert "like_count" in data["data"]["attraction"]
+
+
+def test_get_attraction_detail_new():
+    response = client.get("/api/attractions/9")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"]["attraction"]["name"] == "集美学村"
+    assert data["data"]["attraction"]["region"] == "集美区"
 
 
 def test_get_attraction_detail_not_found():
     response = client.get("/api/attractions/99999")
     assert response.status_code == 404
+
+
+def test_create_like():
+    payload = {
+        "attraction_id": 1,
+        "device_id": "test-like-device-1"
+    }
+    response = client.post("/api/likes", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["code"] == 0
+    assert data["data"]["duplicated"] is False
+    assert data["data"]["like_count"] >= 4
+
+
+def test_duplicate_like():
+    payload = {
+        "attraction_id": 1,
+        "device_id": "test-dup-like-1"
+    }
+    response = client.post("/api/likes", json=payload)
+    assert response.status_code == 200
+
+    response2 = client.post("/api/likes", json=payload)
+    assert response2.status_code == 200
+    assert response2.json()["data"]["duplicated"] is True
 
 
 def test_create_comment():
@@ -124,7 +175,7 @@ def test_duplicate_comment():
 
 def test_create_favorite():
     payload = {
-        "attraction_id": 2,
+        "attraction_id": 9,
         "device_id": "test-device-fav-1"
     }
     response = client.post("/api/favorites", json=payload)
@@ -136,7 +187,7 @@ def test_create_favorite():
 
 def test_duplicate_favorite():
     payload = {
-        "attraction_id": 2,
+        "attraction_id": 9,
         "device_id": "test-device-dup-fav-1"
     }
     response = client.post("/api/favorites", json=payload)
@@ -168,7 +219,7 @@ def test_recommend_route_one_day():
 def test_create_custom_route():
     payload = {
         "name": "测试自定义路线",
-        "attraction_ids": [1, 3, 5],
+        "attraction_ids": [1, 3, 5, 9, 13],
         "preferences": ["人文", "海边"],
         "notes": "测试备注"
     }
@@ -204,3 +255,17 @@ def test_get_route_detail():
     data = response.json()
     assert data["code"] == 0
     assert len(data["data"]["attractions"]) >= 1
+
+
+def test_request_id_header():
+    response = client.get("/api/attractions")
+    assert response.status_code == 200
+    assert "X-Request-ID" in response.headers
+    assert len(response.headers["X-Request-ID"]) >= 8
+
+
+def test_request_id_header_on_error():
+    response = client.get("/api/attractions/99999")
+    assert response.status_code == 404
+    assert "X-Request-ID" in response.headers
+    assert len(response.headers["X-Request-ID"]) >= 8

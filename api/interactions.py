@@ -21,6 +21,11 @@ class FavoriteCreate(BaseModel):
     device_id: str = Field(min_length=8, max_length=100)
 
 
+class LikeCreate(BaseModel):
+    attraction_id: int = Field(gt=0)
+    device_id: str = Field(min_length=8, max_length=100)
+
+
 def _attraction_exists(conn, attraction_id: int) -> bool:
     row = conn.execute(
         "SELECT id FROM attractions WHERE id = ?",
@@ -40,6 +45,14 @@ def _get_comment_count(conn, attraction_id: int) -> int:
 def _get_favorite_count(conn, attraction_id: int) -> int:
     row = conn.execute(
         "SELECT COUNT(*) AS total FROM favorites WHERE attraction_id = ?",
+        (attraction_id,),
+    ).fetchone()
+    return int(row["total"])
+
+
+def _get_like_count(conn, attraction_id: int) -> int:
+    row = conn.execute(
+        "SELECT COUNT(*) AS total FROM likes WHERE attraction_id = ?",
         (attraction_id,),
     ).fetchone()
     return int(row["total"])
@@ -90,6 +103,58 @@ def create_comment(payload: CommentCreate):
                 detail="请勿重复提交评论",
             ) from exc
         raise
+    finally:
+        conn.close()
+
+
+@router.post("/api/likes")
+def create_like(payload: LikeCreate):
+    conn = get_db_connection()
+    try:
+        if not _attraction_exists(conn, payload.attraction_id):
+            raise HTTPException(status_code=404, detail="景点不存在")
+
+        duplicated = False
+        try:
+            conn.execute(
+                """
+                INSERT INTO likes (attraction_id, device_id)
+                VALUES (?, ?)
+                """,
+                (payload.attraction_id, payload.device_id),
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            duplicated = True
+
+        like_count = _get_like_count(conn, payload.attraction_id)
+
+        conn.execute(
+            """
+            UPDATE attractions
+            SET popularity_score = (
+                SELECT COALESCE(like_stats.like_count, 0) * 4 + COALESCE(fav_stats.fav_count, 0) * 2 + COALESCE(cmt_stats.cmt_count, 0)
+                FROM
+                    (SELECT COUNT(*) AS like_count FROM likes WHERE attraction_id = ?) AS like_stats,
+                    (SELECT COUNT(*) AS fav_count FROM favorites WHERE attraction_id = ?) AS fav_stats,
+                    (SELECT COUNT(*) AS cmt_count FROM comments WHERE attraction_id = ?) AS cmt_stats
+            ),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (payload.attraction_id, payload.attraction_id, payload.attraction_id, payload.attraction_id),
+        )
+        conn.commit()
+
+        return {
+            "code": 0,
+            "msg": "已点赞" if not duplicated else "你已点赞过该景点",
+            "data": {
+                "attraction_id": payload.attraction_id,
+                "like_count": like_count,
+                "duplicated": duplicated,
+            },
+        }
     finally:
         conn.close()
 

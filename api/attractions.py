@@ -3,14 +3,15 @@ from db.database import get_db_connection
 
 router = APIRouter()
 
-VALID_SORT_FIELDS = frozenset({"id", "name", "popularity_score", "recommend_score", "comment_count", "favorite_count", "created_at"})
+VALID_SORT_FIELDS = frozenset({"id", "name", "popularity_score", "recommend_score", "comment_count", "favorite_count", "like_count", "created_at"})
 VALID_REGIONS = frozenset({"思明区", "湖里区", "集美区", "同安区", "翔安区", "海沧区"})
 
 ATTRACTIONS_DETAIL_SQL = """
 SELECT
     a.*,
     COALESCE(comment_stats.comment_count, 0) AS comment_count,
-    COALESCE(favorite_stats.favorite_count, 0) AS favorite_count
+    COALESCE(favorite_stats.favorite_count, 0) AS favorite_count,
+    COALESCE(like_stats.like_count, 0) AS like_count
 FROM attractions AS a
 LEFT JOIN (
     SELECT attraction_id, COUNT(*) AS comment_count
@@ -24,6 +25,12 @@ LEFT JOIN (
     GROUP BY attraction_id
 ) AS favorite_stats
     ON favorite_stats.attraction_id = a.id
+LEFT JOIN (
+    SELECT attraction_id, COUNT(*) AS like_count
+    FROM likes
+    GROUP BY attraction_id
+) AS like_stats
+    ON like_stats.attraction_id = a.id
 """
 
 

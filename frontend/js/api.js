@@ -76,5 +76,12 @@ const API = {
             method: 'POST',
             body: JSON.stringify(payload)
         });
+    },
+
+    async submitLike(payload) {
+        return this.request('/api/likes', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
     }
 };

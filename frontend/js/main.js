@@ -186,7 +186,7 @@ async function loadWeather() {
                 '<div>' +
                     '<h3>' + weather.city + ' · ' + weather.current_weather + '</h3>' +
                     '<p class="weather-temp">' + weather.current_temp + '°C</p>' +
-                    '<p>' + weather.low_temp + '°C - ' + weather.high_temp + '°C | 今日 ' + weather.today_weather + '</p>' +
+                    '<p>' + weather.low_temp + '°C - ' + weather.high_temp + '°C | ' + (weather.observe_time || weather.update_time || '今日') + ' ' + weather.today_weather + '</p>' +
                 '</div>' +
                 '<div>' +
                     '<p>' + degradeText + '</p>' +
@@ -243,17 +243,22 @@ async function loadAttractions(filters) {
         }
 
         grid.innerHTML = items.map(function (item) {
+            var realPath = item.cover_image.replace('.svg', '.jpg').replace('/images/', '/images/real/');
             return '<article class="card" data-attraction-id="' + item.id + '">' +
-                '<img src="' + item.cover_image + '" alt="' + item.name + '" loading="lazy">' +
+                '<img src="' + realPath + '" alt="' + item.name + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + item.cover_image + '\'">' +
                 '<div class="card-content">' +
                     '<h3>' + item.name + '</h3>' +
                     '<p class="meta">区域：' + item.region + ' | 推荐时长：' + item.rec_time + '</p>' +
                     '<p class="desc">' + item.description + '</p>' +
                     '<div class="stats-row">' +
+                        '<span>点赞 <strong data-like-count="' + item.id + '">' + (item.like_count || 0) + '</strong></span>' +
                         '<span>收藏 <strong data-favorite-count="' + item.id + '">' + (item.favorite_count || 0) + '</strong></span>' +
                         '<span>评论 <strong data-comment-count="' + item.id + '">' + (item.comment_count || 0) + '</strong></span>' +
                     '</div>' +
-                    '<button class="action-btn favorite-btn" data-favorite-btn="' + item.id + '">收藏这个景点</button>' +
+                    '<div class="action-buttons">' +
+                        '<button class="action-btn like-btn" data-like-btn="' + item.id + '">点赞推荐</button>' +
+                        '<button class="action-btn favorite-btn" data-favorite-btn="' + item.id + '">收藏这个景点</button>' +
+                    '</div>' +
                     '<form class="comment-form" data-comment-form="' + item.id + '">' +
                         '<input name="user_name" type="text" maxlength="20" placeholder="你的昵称（最多20字）" required>' +
                         '<textarea name="content" maxlength="200" placeholder="写下你的游玩建议（最多200字）" required></textarea>' +
@@ -278,12 +283,35 @@ async function loadAttractions(filters) {
 }
 
 function bindCardEvents() {
+    document.querySelectorAll('[data-like-btn]').forEach(function (button) {
+        button.addEventListener('click', handleLikeClick);
+    });
     document.querySelectorAll('[data-favorite-btn]').forEach(function (button) {
         button.addEventListener('click', handleFavoriteClick);
     });
     document.querySelectorAll('[data-comment-form]').forEach(function (form) {
         form.addEventListener('submit', handleCommentSubmit);
     });
+}
+
+async function handleLikeClick(event) {
+    var button = event.currentTarget;
+    var attractionId = Number(button.dataset.likeBtn);
+    button.disabled = true;
+    button.textContent = '点赞中...';
+
+    try {
+        var result = await API.submitLike({
+            attraction_id: attractionId,
+            device_id: getDeviceId()
+        });
+        document.querySelector('[data-like-count="' + attractionId + '"]').textContent = result.like_count;
+        button.textContent = result.duplicated ? '已点赞过' : '已点赞';
+    } catch (error) {
+        button.disabled = false;
+        button.textContent = '点赞推荐';
+        alert('点赞失败：' + error.message);
+    }
 }
 
 async function handleFavoriteClick(event) {

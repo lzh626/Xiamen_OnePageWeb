@@ -53,6 +53,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 .action-btn:disabled { background: #a0aec0; cursor: not-allowed; }
 .action-btn.secondary { background: #e2e8f0; color: #4a5568; }
 .action-btn.secondary:hover { background: #cbd5e0; }
+.like-btn { background: #e53e3e; }
+.like-btn:hover { background: #c53030; }
+.action-buttons { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
 .comment-form { margin-top: 1rem; }
 .comment-form input[type="text"],
 .comment-form textarea { width: 100%; padding: 0.5rem; margin-bottom: 0.5rem; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 0.875rem; font-family: inherit; }

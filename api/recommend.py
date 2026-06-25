@@ -1,17 +1,26 @@
 import json
-from collections import Counter
-from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from api.weather import _read_cache, get_xiamen_weather
 from db.database import get_db_connection
+from recommend.rule_recommender import RuleRecommender
+from recommend.llm_recommender import LLMRecommender, MockLLMRecommender
+from config.settings import RECOMMENDER_TYPE
 
 router = APIRouter()
 
 VALID_PREFERENCES = frozenset({"亲子", "摄影", "人文", "海边", "美食", "低强度"})
 VALID_DURATIONS = frozenset({"half_day", "one_day"})
+
+
+def _get_recommender():
+    if RECOMMENDER_TYPE == "llm":
+        return LLMRecommender()
+    if RECOMMENDER_TYPE == "mock":
+        return MockLLMRecommender()
+    return RuleRecommender()
 
 
 class CustomRouteCreate(BaseModel):
@@ -36,41 +45,6 @@ def _get_weather_for_recommend():
             "tourism_index": "暂无",
             "tourism_tips": "天气数据不可用",
         }
-
-
-def _score_attraction(attraction, preferences, weather):
-    score = 0
-    reasons = []
-
-    if attraction["intensity_level"] == "low" and "低强度" in preferences:
-        score += 20
-        reasons.append("低强度友好，适合轻松游玩")
-
-    intensity_bonus = {"low": 15, "medium": 10}
-    score += intensity_bonus.get(attraction["intensity_level"], 5)
-    score += min(attraction.get("recommend_score", 0) // 5, 20)
-    score += min(attraction.get("popularity_score", 0) // 5, 20)
-
-    current_w = weather.get("current_weather", "")
-    suitable = attraction.get("suitable_weather", "")
-    if current_w and suitable and current_w in suitable:
-        score += 25
-        reasons.append(f"当前天气{current_w}适合游玩")
-
-    tourism = weather.get("tourism_index", "")
-    if tourism in ("适宜", "较适宜"):
-        score += 15
-        reasons.append(f"旅游指数「{tourism}」")
-    elif tourism == "不适宜":
-        reasons.append(f"旅游指数「{tourism}」，建议优先考虑室内景点")
-
-    tag_names = attraction.get("tag_names", [])
-    for pref in preferences:
-        if pref in tag_names:
-            score += 15
-            reasons.append(f"属于「{pref}」类景点")
-
-    return score, reasons
 
 
 @router.get("/api/routes/recommend")
@@ -108,56 +82,39 @@ def recommend_route(
         if not rows:
             return {
                 "code": 0,
-                "msg": "未找到匹配景点，返回全量推荐",
-                "data": {"route": [], "reasons": ["当前偏好无匹配景点"], "weather_summary": weather, "matched_weather": weather.get("current_weather", "未知"), "estimated_duration": "0小时"},
+                "msg": "未找到匹配景点",
+                "data": {
+                    "route": [],
+                    "reasons": ["当前偏好无匹配景点"],
+                    "weather_summary": weather,
+                    "matched_weather": weather.get("current_weather", "未知"),
+                    "estimated_duration": "0小时",
+                    "recommender": _get_recommender().__class__.__name__,
+                },
             }
 
-        tagged_rows = []
-        for row in rows:
-            d = dict(row)
+        attr_list = [dict(r) for r in rows]
+        for a in attr_list:
             tag_rows = conn.execute(
                 "SELECT t2.name FROM tags AS t2 JOIN attraction_tags AS at2 ON at2.tag_id = t2.id WHERE at2.attraction_id = ?",
-                (d["id"],),
+                (a["id"],),
             ).fetchall()
-            d["tag_names"] = [t["name"] for t in tag_rows]
-            tagged_rows.append(d)
-
-        scored = []
-        for attr in tagged_rows:
-            s, r = _score_attraction(attr, selected_prefs, weather)
-            scored.append((s, r, attr))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-
-        max_hours = 2.5 if duration == "half_day" else 5.0
-        selected = []
-        total_hours = 0.0
-
-        for _, reasons, attr in scored:
-            hours = attr.get("recommended_hours", 1.5)
-            if total_hours + hours > max_hours + 0.5:
-                if total_hours >= max_hours:
-                    continue
-            selected.append({"attraction": attr, "reasons": reasons})
-            total_hours += hours
-
-        return {
-            "code": 0,
-            "msg": "路线推荐成功",
-            "data": {
-                "route": selected,
-                "reasons": [],
-                "weather_summary": weather,
-                "matched_weather": weather.get("current_weather", "未知"),
-                "estimated_duration": f"{total_hours:.1f}小时",
-            },
-        }
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+            a["tag_names"] = [t["name"] for t in tag_rows]
     finally:
         conn.close()
+
+    recommender = _get_recommender()
+    result = recommender.recommend(selected_prefs, duration, weather, attr_list)
+
+    return {
+        "code": 0,
+        "msg": "路线推荐成功",
+        "data": {
+            **result,
+            "weather_summary": weather,
+            "matched_weather": weather.get("current_weather", "未知"),
+        },
+    }
 
 
 @router.post("/api/routes/custom")

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual Environment
+ven_of_XmWeatherWeb/
+venv/
+.env
+
+# Database
+*.db
+
+# IDE
+.vscode/
+.idea/
+
+# 本地文档（不推送）
+README_LOCAL.md
+
+# OS
+.DS_Store
+Thumbs.db
