@@ -60,10 +60,32 @@ async function handleRecommend() {
 
 function renderRouteResult(data) {
     var routeDiv = document.getElementById('route-result');
-    var html = '<div class="route-summary">';
-    html += '<span class="route-summary-item">预计时长：' + (data.estimated_duration || '--') + '</span>';
-    html += '<span class="route-summary-item">天气：' + (data.matched_weather || '--') + '</span>';
-    html += '<span class="route-summary-item">旅游建议：' + (data.weather_summary && data.weather_summary.tourism_tips ? data.weather_summary.tourism_tips : '--') + '</span>';
+    var html = '';
+
+    var weatherTip = (data.weather_summary && data.weather_summary.tourism_tips) || '';
+    var recommenderMap = {
+        'rule': '规则引擎',
+        'rule-fallback': '规则引擎(LLM降级)',
+        'mock-llm': 'AI模拟推荐',
+        'llm': '大模型推荐'
+    };
+    var recommenderLabel = recommenderMap[data.recommender] || data.recommender || '--';
+
+    html += '<div class="route-summary-card">';
+    html += '<div class="route-summary-header">';
+    html += '<span class="route-summary-badge">' + recommenderLabel + '</span>';
+    html += '<span class="route-summary-item">⏱ ' + (data.estimated_duration || '--') + '</span>';
+    html += '<span class="route-summary-item">🌤 ' + (data.matched_weather || '--') + '</span>';
+    if (data.recommender === 'rule-fallback') {
+        html += '<span class="route-summary-item warning">⚠ 大模型不可用，已切换规则引擎</span>';
+    }
+    html += '</div>';
+    if (weatherTip) {
+        html += '<p class="route-weather-tip">💡 ' + weatherTip + '</p>';
+    }
+    if (data.llm_summary) {
+        html += '<p class="route-llm-summary">📋 ' + data.llm_summary + '</p>';
+    }
     html += '</div>';
 
     if (!data.route || data.route.length === 0) {
@@ -72,23 +94,43 @@ function renderRouteResult(data) {
         return;
     }
 
+    html += '<div class="route-items-wrapper">';
     data.route.forEach(function (item, index) {
-        html += '<div class="route-item">';
-        html += '<div class="route-item-number">' + (index + 1) + '</div>';
-        html += '<div class="route-item-content">';
-        html += '<h4>' + item.attraction.name + '</h4>';
-        html += '<p style="font-size:0.85rem;color:#718096;">区域：' + item.attraction.region + ' | 建议时长：' + item.attraction.recommended_hours + '小时</p>';
-        if (item.reasons && item.reasons.length > 0) {
-            html += '<ul class="route-reasons">';
-            item.reasons.forEach(function (r) {
-                html += '<li class="route-reason">' + r + '</li>';
-            });
-            html += '</ul>';
-        }
-        html += '</div></div>';
-    });
+        var attr = item.attraction;
+        var realImg = (attr.cover_image || '').replace('.svg', '.jpg').replace('/images/', '/images/real/');
+        var svgImg = attr.cover_image || '';
 
-    html += '<button class="action-btn route-save-btn" id="save-route-btn">保存这条路线</button>';
+        var intensityLabels = { low: '低强度', medium: '中等强度', high: '高强度' };
+
+        html += '<div class="route-card">';
+        html += '<div class="route-card-image">';
+        html += '<img src="' + realImg + '" alt="' + attr.name + '" onerror="this.onerror=null;this.src=\'' + svgImg + '\'">';
+        html += '<div class="route-card-number">' + (index + 1) + '</div>';
+        html += '</div>';
+        html += '<div class="route-card-body">';
+        html += '<h4 class="route-card-name">' + attr.name + '</h4>';
+        html += '<div class="route-card-tags">';
+        html += '<span class="tag tag-region">📍 ' + (attr.region || '--') + '</span>';
+        html += '<span class="tag tag-time">⏳ ' + (attr.recommended_hours || '--') + '小时</span>';
+        html += '<span class="tag tag-intensity">' + (intensityLabels[attr.intensity_level] || attr.intensity_level || '--') + '</span>';
+        if (attr.suitable_weather) {
+            html += '<span class="tag tag-weather">🌤 ' + attr.suitable_weather + '</span>';
+        }
+        html += '</div>';
+        if (item.reasons && item.reasons.length > 0) {
+            html += '<div class="route-card-reasons">';
+            item.reasons.forEach(function (r) {
+                html += '<span class="reason-chip">' + r + '</span>';
+            });
+            html += '</div>';
+        }
+        html += '<p class="route-card-desc">' + attr.description + '</p>';
+        html += '</div>';
+        html += '</div>';
+    });
+    html += '</div>';
+
+    html += '<button class="action-btn route-save-btn" id="save-route-btn">💾 保存这条路线</button>';
     routeDiv.innerHTML = html;
 
     var saveBtn = document.getElementById('save-route-btn');

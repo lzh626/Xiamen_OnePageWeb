@@ -97,9 +97,11 @@ class LLMRecommender(BaseRecommender):
                     "reasons": [reason] if reason else [],
                 })
 
+        total_hours = sum(a["attraction"].get("recommended_hours", 1.5) for a in selected)
+
         return {
             "route": selected,
-            "estimated_duration": "2.5小时" if duration == "half_day" else "5.0小时",
+            "estimated_duration": f"{total_hours:.1f}小时",
             "recommender": "llm",
             "llm_summary": llm_result.get("summary", ""),
             "llm_error": False,
@@ -109,15 +111,27 @@ class LLMRecommender(BaseRecommender):
 class MockLLMRecommender(BaseRecommender):
 
     def recommend(self, preferences, duration, weather, attractions):
+        max_hours = 2.5 if duration == "half_day" else 5.0
         selected = []
-        for i, attr in enumerate(attractions[:4]):
+        total_hours = 0.0
+
+        for attr in attractions:
+            hours = attr.get("recommended_hours", 1.5)
+            if total_hours + hours > max_hours + 0.5:
+                if total_hours >= max_hours:
+                    continue
+            pref_text = f"AI模型推荐：匹配偏好「{preferences[0] if preferences else '综合'}」"
             selected.append({
                 "attraction": dict(attr),
-                "reasons": [f"AI模型推荐：匹配偏好「{preferences[0] if preferences else '综合'}」"],
+                "reasons": [pref_text],
             })
+            total_hours += hours
+            if len(selected) >= 4:
+                break
+
         return {
             "route": selected,
-            "estimated_duration": "2.5小时" if duration == "half_day" else "5.0小时",
+            "estimated_duration": f"{total_hours:.1f}小时",
             "recommender": "mock-llm",
             "llm_summary": "基于AI模型（模拟）生成的推荐路线，实际部署时替换为真实大模型。",
             "llm_error": False,
